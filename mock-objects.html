@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="Date-Revision-yyyymmdd" content="20140709" />
     <meta http-equiv="Content-Language" content="en" />
-    <title>needle4j - hhh - Overview</title>
+    <title>needle4j - hhh - Testing with Mock objects</title>
     <link rel="stylesheet" href="./css/apache-maven-fluido-1.3.1.min.css" />
     <link rel="stylesheet" href="./css/site.css" />
     <link rel="stylesheet" href="./css/print.css" media="print" />
@@ -61,7 +61,7 @@
         Home</a>
                     <span class="divider">/</span>
       </li>
-        <li class="active ">Overview</li>
+        <li class="active ">Testing with Mock objects</li>
                 
                 
                     
@@ -78,10 +78,12 @@
                 <ul class="nav nav-list">
                     <li class="nav-header">Main</li>
                               
-      <li class="active">
+      <li>
   
-            <a href="#"><i class="none"></i>Overview</a>
-          </li>
+                          <a href="index.html" title="Overview">
+          <i class="none"></i>
+        Overview</a>
+            </li>
                 
       <li>
   
@@ -182,53 +184,102 @@
                 
         <div id="bodyColumn"  class="span9" >
                                   
-            <h1>Overview</h1>
-<p><img src="images/coffee.jpg" alt="needle4j" /></p>
-<p><b>Needle4j</b> is a lightweight framework for testing Java EE components outside of the container in isolation. The main goals are the reduction of setup code and faster executions of tests, especially compared to running embedded or external server tests.</p>
-<p>Needle4j will automatically analyse the dependencies of components and inject mock objects by default. The developer may freely provide default or custom objects instead.</p>
-<p>Needle4j is an Open Source library, <a class="externalLink" href="https://github.com/needle4j/needle4j">hosted at github</a>.</p>
-<p>GNU Lesser General Public License (LGPL) version 2.1 or later.</p>
-<h1>Features</h1>
-
-<ul>
-  
-<li>Instantiation of tested components</li>
-  
-<li>Constructor, Method and Field based dependency injection</li>
-  
-<li>Injection of Mock objects by default</li>
-  
-<li>Extensible by providing custom injection providers</li>
-  
-<li>Comfortable automatic wiring of dependency graphs</li>
-  
-<li>Database testing via JPA Provider, e.g.<a class="externalLink" href="http://www.eclipse.org/eclipselink/">EclipseLink</a> or <a class="externalLink" href="http://www.hibernate.org">Hibernate</a></li>
-  
-<li>EntityManager creation and injection</li>
-  
-<li>Execute optional database operations during test setup and tear down</li>
-  
-<li>Transaction Utilities</li>
-  
-<li>Provide Utilities for Reflection, e.g. for private method invocation or field access</li>
-  
-<li>Needle can be used with <a class="externalLink" href="http://www.junit.org">JUnit</a> or <a class="externalLink" href="http://testng.org/">TestNG</a>.</li>
-  
-<li>It supports <a class="externalLink" href="http://www.easymock.org/">EasyMock</a> and  <a class="externalLink" href="http://code.google.com/p/mockito/">Mockito</a> out-of-the-box but  could also be extended with other frameworks.</li>
-</ul>
+            <h1>Testing with Mock objects</h1>
+<p>Mock objects are a useful way to write unit tests for objects that have collaborators. Needle generates Mock objects dynamically for dependencies of the components under test by default. Out-of-the-box Needle has implementations for EasyMock and Mockito. </p>
+<p>To use other mock frameworks, the interface <tt>org.needle4j.mock.MockProvider</tt> must be implemented and configured in the <tt>needle.properties</tt> file.</p>
 <div class="section">
-<h2>Links<a name="Links"></a></h2>
+<h2>Create a Mock Object<a name="Create_a_Mock_Object"></a></h2>
+<p>To create a Mock object, you can annotate a field with the annotation <tt>@Mock</tt>.</p>
 
-<ul>
-  
-<li>Needle4j Home Page: <a class="externalLink" href="http://www.needle4j.org/">http://www.needle4j.org/</a></li>
-  
-<li>Downloads: <a class="externalLink" href="http://www.needle4j.org/downloads">http://www.needle4j.org/downloads</a></li>
-  
-<li>Issue Tracking: <a class="externalLink" href="https://github.com/needle4j/needle4j/issues">https://github.com/needle4j/needle4j/issues</a></li>
-  
-<li>Source Code: <a class="externalLink" href="https://github.com/needle4j/needle4j">https://github.com/needle4j/needle4j</a></li>
-</ul></div>
+<div class="source">
+<pre>public class Test {
+  @Rule
+  public NeedleRule needleRule = new NeedleRule();
+
+  @Mock
+  private EntityManager entityManagerMock;
+
+  @Test
+  public void test() throws Exception {
+      ...
+  }
+}
+</pre></div>
+<p>The dependencies of an object under test are automatically initialized by the corresponding InjectionProvider. These dependencies can also injected into the testcase by using the corresponding injection annotation.</p></div>
+<div class="section">
+<h2>EasyMock<a name="EasyMock"></a></h2>
+<p>The EasyMockProvider creates &#x201c;Nice&#x201d; Mock objects by default. Such nice mocks allow all method calls and returns appropriate empty values e.g. 0, null or false. If needed, all mocks can also be converted to use another policy by calling resetAllToNice(), resetAllToDefault() or resetAllToStrict().</p>
+<p>The EasyMockProvider implementation is a subclass of EasyMockSupport. EasyMockSupport is a class that meant to be used as a helper or base class to your test cases. It will automatically register all created mocks and to replay, reset or verify them in batch instead of explicitly.</p>
+<p>The following test illustrates the usage of EasyMock with Needle and the injection of generated mock objects.</p>
+
+<div class="source">
+<pre>public class AuthenticatorTest {
+
+  @Rule
+  public NeedleRule needleRule = new NeedleRule();
+
+  @ObjectUnderTest
+  private Authenticator authenticator;
+
+  @Inject
+  private EasyMockProvider mockProvider;
+
+  @Inject
+  private UserDao userDaoMock;
+
+  @Test
+  public void testAuthenticate() throws Exception {
+    final User user = new UserTestdataBuilder().build();
+    final String username = &quot;username&quot;;
+    final String password = &quot;password&quot;;
+
+    EasyMock.expect(userDaoMock.findBy(username, password)).andReturn(user);
+
+    mockProvider.replayAll();
+    boolean authenticated = authenticator.authenticate(username, password);
+    Assert.assertTrue(authenticated);
+    mockProvider.verifyAll();
+  }
+}
+</pre></div>
+<p>EasyMock is the default mock provider. Only the EasyMock library must be added to the test classpath.</p>
+<p>For more details about EasyMock, please refer to the <a class="externalLink" href="http://easymock.org">EasyMock</a> documentation.</p></div>
+<div class="section">
+<h2>Mockito<a name="Mockito"></a></h2>
+<p>Needle has also an mock provider implementation for Mockito. Mockito generates Mock objects, where by default the return value of a method is null, an empty collection or the appropriate primitive value.</p>
+<p>The following test illustrates the usage of Mockito with Needle.</p>
+
+<div class="source">
+<pre>public class AuthenticatorTest {
+  @Rule
+  public NeedleRule needleRule = new NeedleRule();
+
+  @ObjectUnderTest
+  private Authenticator authenticator;
+
+  @Inject
+  private UserDao userDaoMock;
+
+  @Test
+  public void testAuthenticate() throws Exception {
+    final User user = new UserTestdataBuilder().build();
+    final String username = &quot;username&quot;;
+    final String password = &quot;password&quot;;
+
+    Mockito.when(userDaoMock.findBy(username, password)).thenReturn(user);
+
+    Assert.assertTrue(authenticator.authenticate(username, password));
+
+  }
+}
+</pre></div>
+<p>To use Mockito, the mockito provider must be configured in the <tt>needle.properties</tt> file and the mockito library must be present on test classpath.</p>
+
+<div class="source">
+<pre>mock.provider=org.needle4j.mock.MockitoProvider
+</pre></div>
+<p>For more details about Mockito, please refer to the <a class="externalLink" href="http://mockito.org">Mockito</a> documentation.</p>
+<p><b>Note:</b> You can use NeedleBuilders.needleMockitoTestRule() to automatically set the MockProvider to Mockito without touching the &#x2018;needle.properties&#x2019;. </p></div>
                   </div>
             </div>
           </div>
